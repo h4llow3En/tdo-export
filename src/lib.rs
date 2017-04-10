@@ -49,7 +49,7 @@ pub fn gen_tasks_md(tdo: &tdo_core::tdo::Tdo, list_done: bool) -> Option<String>
             tasks = list.list_undone();
         }
         if tasks.len() > 0 {
-            intern.push_str(&format!("\n# {}\n", &list.name));
+            intern.push_str(&format!("\n### {}\n", &list.name));
             for entry in tasks {
                 if entry.done {
                     intern.push_str(&format!("- [x] {}\n", &entry.name));
