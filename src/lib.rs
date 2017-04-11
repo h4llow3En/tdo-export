@@ -8,6 +8,15 @@ extern crate tdo_core;
 extern crate libc;
 
 use std::{slice, io, ptr};
+use libc::{ioctl, c_ushort, STDOUT_FILENO, TIOCGWINSZ};
+
+#[repr(C)]
+struct winsize {
+    ws_row: c_ushort, /* rows, in characters */
+    ws_col: c_ushort, /* columns, in characters */
+    ws_xpixel: c_ushort, /* horizontal size, pixels */
+    ws_ypixel: c_ushort, /* vertical size, pixels */
+}
 
 
 /// Generates a well formated String of all undone Todos
@@ -64,13 +73,31 @@ pub fn gen_tasks_md(tdo: &tdo_core::tdo::Tdo, list_done: bool) -> Option<String>
         _ => {
             markdown.push_str(&intern);
             Some(markdown)
-        },
+        }
     }
 }
 
-/// Returns the full Name of the current user if present.
+/// Returns the formated output for the terminal printout.
+#[allow(unused_variables, unused_mut)] //for now
+pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo) -> Option<Vec<String>> {
+    let (col, _): (usize, _) = match get_winsize() {
+        Ok(res) => res,
+        Err(_) => {
+            println!("[Error] Terminalsize could not be fetched.", );
+            std::process::exit(1);
+        }
+    };
+    let mut formated_printout: Vec<String> = Vec::new();
+    // TODO: Do the actual formating for the printout
+
+    match formated_printout.len() {
+        0 => None,
+        _ => Some(formated_printout),
+    }
+}
+
 #[allow(unsafe_code)]
-pub fn get_full_name() -> Result<String, io::Error> {
+fn get_full_name() -> Result<String, io::Error> {
     unsafe {
         let uid = libc::geteuid();
         let user = ptr::read(libc::getpwuid(uid));
@@ -82,5 +109,21 @@ pub fn get_full_name() -> Result<String, io::Error> {
         } else {
             Ok(name)
         }
+    }
+}
+
+#[allow(unsafe_code)]
+fn get_winsize() -> io::Result<(usize, usize)> {
+    let w = winsize {
+        ws_row: 0,
+        ws_col: 0,
+        ws_xpixel: 0,
+        ws_ypixel: 0,
+    };
+    let r = unsafe { ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) };
+
+    match r {
+        0 => Ok((w.ws_col as usize, w.ws_row as usize)),
+        _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "No valid data.")),
     }
 }
