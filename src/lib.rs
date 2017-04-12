@@ -79,7 +79,7 @@ pub fn gen_tasks_md(tdo: &tdo_core::tdo::Tdo, list_done: bool) -> Option<String>
 
 /// Returns the formated output for the terminal printout.
 #[allow(unused_variables, unused_mut)] //for now
-pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo) -> Option<Vec<String>> {
+pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo, all: bool) -> Option<Vec<String>> {
     let (col, _): (usize, _) = match get_winsize() {
         Ok(res) => res,
         Err(_) => {
@@ -87,9 +87,48 @@ pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo) -> Option<Vec<String>> {
             std::process::exit(1);
         }
     };
+    let id_space = tdo.get_highest_id().to_string().len();
     let mut formated_printout: Vec<String> = Vec::new();
-    // TODO: Do the actual formating for the printout
-
+    for list in tdo.lists.to_owned().iter() {
+        let tasks: Vec<tdo_core::todo::Todo>;
+        if all {
+            tasks = list.list.to_owned();
+        } else {
+            tasks = list.list_undone();
+        }
+        if tasks.len() > 0 {
+            formated_printout.push(format!("## {}", &list.name));
+            for entry in tasks {
+                let space = id_space - entry.id.to_string().len();
+                let mut task_vec: Vec<String> = Vec::new();
+                let mut entr_str = entry.name;
+                let mut tmp_str: String;
+                while entr_str.len() > col - 9 - id_space {
+                    tmp_str = entr_str.split_off(col - 9 - id_space);
+                    task_vec.push(entr_str);
+                    entr_str = tmp_str;
+                }
+                task_vec.push(entr_str);
+                if entry.done {
+                    formated_printout.push(format!("  [x] {}{} | {}",
+                                                   " ".repeat(space),
+                                                   entry.id,
+                                                   task_vec.remove(0)));
+                } else {
+                    formated_printout.push(format!("  [ ] {}{} | {}",
+                                                   " ".repeat(space),
+                                                   entry.id,
+                                                   task_vec.remove(0)));
+                }
+                while task_vec.capacity() > 0 {
+                    formated_printout.push(format!("{}| {}",
+                                                   " ".repeat(7+id_space),
+                                                   task_vec.remove(0)));
+                }
+            }
+            formated_printout.push(String::new());
+        }
+    }
     match formated_printout.len() {
         0 => None,
         _ => Some(formated_printout),
