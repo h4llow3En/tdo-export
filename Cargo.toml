@@ -4,5 +4,5 @@ version = "0.1.0"
 authors = ["Felix Wittwer <dev@felixwittwer.de>", "Felix Döring <development@felixdoering.com>"]
 
 [dependencies]
-tdo-core = { git = 'https://github.com/tdolist/tdo-core' }
+tdo-core = { git = 'https://github.com/tdolist/tdo-core.git' }
 libc = "0.2"
