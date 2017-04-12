@@ -120,10 +120,12 @@ pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo, all: bool) -> Option<Vec
                                                    entry.id,
                                                    task_vec.remove(0)));
                 }
-                while task_vec.capacity() > 0 {
-                    formated_printout.push(format!("{}| {}",
-                                                   " ".repeat(7+id_space),
-                                                   task_vec.remove(0)));
+                if task_vec.capacity() > 0 {
+                    for part in task_vec {
+                        formated_printout.push(format!("{}| {}",
+                                                       " ".repeat(7+id_space),
+                                                       part));
+                    }
                 }
             }
             formated_printout.push(String::new());
