@@ -6,8 +6,10 @@
 #![warn(missing_debug_implementations)]
 extern crate tdo_core;
 extern crate libc;
+extern crate colored;
 
 use std::{slice, io, ptr};
+use colored::*;
 use libc::{ioctl, c_ushort, STDOUT_FILENO, TIOCGWINSZ};
 
 #[repr(C)]
@@ -66,6 +68,8 @@ pub fn gen_tasks_md(tdo: &tdo_core::tdo::Tdo, list_done: bool) -> Option<String>
                     intern.push_str(&format!("- [ ] {}\n", &entry.name));
                 }
             }
+        } else if list_done {
+            intern.push_str(&format!("\n### {}\n", &list.name));
         }
     }
     match intern.len() {
@@ -83,7 +87,7 @@ pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo, all: bool) -> Option<Vec
     let (col, _): (usize, _) = match get_winsize() {
         Ok(res) => res,
         Err(_) => {
-            println!("[Error] Terminalsize could not be fetched.", );
+            println!("{} Terminalsize could not be fetched.", "error:".red().bold());
             std::process::exit(1);
         }
     };
@@ -128,6 +132,9 @@ pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo, all: bool) -> Option<Vec
                     }
                 }
             }
+            formated_printout.push(String::new());
+        } else if all {
+            formated_printout.push(format!("## {}", &list.name));
             formated_printout.push(String::new());
         }
     }

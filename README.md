@@ -10,7 +10,7 @@ The export module for tdo.
 ```toml
 #Cargo.toml
 [dependencies]
-tdo-export = "0.1.0"
+tdo-export = "0.1.1"
 ```
 ## Documentation
 
