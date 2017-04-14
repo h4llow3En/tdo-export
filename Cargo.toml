@@ -1,6 +1,6 @@
 [package]
 name = "tdo-export"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Felix Wittwer <dev@felixwittwer.de>", "Felix Döring <development@felixdoering.com>"]
 description = "The export module for tdo"
 
@@ -15,6 +15,6 @@ readme = "README.md"
 include = [".gitignore", ".travis.yml", "Cargo.toml", "src/*.rs"]
 
 [dependencies]
-tdo-core = "0.1.0"
+tdo-core = "0.1.1"
 libc = "0.2"
 colored = "1.4"
