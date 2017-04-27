@@ -8,18 +8,23 @@ extern crate tdo_core;
 extern crate libc;
 extern crate colored;
 
+#[macro_use]
+extern crate prettytable;
+use prettytable::Table;
+use prettytable::format;
+// use prettytable::row::Row;
+// use prettytable::cell::Cell;
+
 use std::{slice, io, ptr};
 use colored::*;
-use libc::{ioctl, c_ushort, STDOUT_FILENO, TIOCGWINSZ};
 
 #[repr(C)]
 struct winsize {
-    ws_row: c_ushort, /* rows, in characters */
-    ws_col: c_ushort, /* columns, in characters */
-    ws_xpixel: c_ushort, /* horizontal size, pixels */
-    ws_ypixel: c_ushort, /* vertical size, pixels */
+    ws_row: libc::c_ushort, /* rows, in characters */
+    ws_col: libc::c_ushort, /* columns, in characters */
+    ws_xpixel: libc::c_ushort, /* horizontal size, pixels */
+    ws_ypixel: libc::c_ushort, /* vertical size, pixels */
 }
-
 
 /// Generates a well formated String of all undone Todos
 pub fn gen_tasks_mail(tdo: &tdo_core::tdo::Tdo) -> Option<String> {
@@ -82,17 +87,16 @@ pub fn gen_tasks_md(tdo: &tdo_core::tdo::Tdo, list_done: bool) -> Option<String>
 }
 
 /// Returns the formated output for the terminal printout.
-#[allow(unused_variables, unused_mut)] //for now
-pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo, all: bool) -> Option<Vec<String>> {
-    let (col, _): (usize, _) = match get_winsize() {
-        Ok(res) => res,
+pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo, all: bool) {
+    let (width, _) = match get_winsize() {
+        Ok(x) => x,
         Err(_) => {
-            println!("{} Terminalsize could not be fetched.", "error:".red().bold());
+            println!("{} Terminalsize could not be fetched.",
+                     "error:".red().bold());
             std::process::exit(1);
         }
     };
-    let id_space = tdo.get_highest_id().to_string().len();
-    let mut formated_printout: Vec<String> = Vec::new();
+    let mut table = Table::new();
     for list in tdo.lists.to_owned().iter() {
         let tasks: Vec<tdo_core::todo::Todo>;
         if all {
@@ -100,49 +104,30 @@ pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo, all: bool) -> Option<Vec
         } else {
             tasks = list.list_undone();
         }
+        table.add_row(row![bc->"###", "", b->&list.name]);
         if tasks.len() > 0 {
-            formated_printout.push(format!("## {}", &list.name));
             for entry in tasks {
-                let space = id_space - entry.id.to_string().len();
-                let mut task_vec: Vec<String> = Vec::new();
-                let mut entr_str = entry.name;
-                let mut tmp_str: String;
-                while entr_str.len() > col - 9 - id_space {
-                    tmp_str = entr_str.split_off(col - 9 - id_space);
-                    task_vec.push(entr_str);
-                    entr_str = tmp_str;
-                }
-                task_vec.push(entr_str);
+                let mut task_vec = reformat_task(&entry.name,
+                                                 width - 9 -
+                                                 tdo.get_highest_id().to_string().len());
                 if entry.done {
-                    formated_printout.push(format!("  [x] {}{} | {}",
-                                                   " ".repeat(space),
-                                                   entry.id,
-                                                   task_vec.remove(0)));
+                    table.add_row(row![c->"[x]", r->entry.id, task_vec.remove(0)]);
                 } else {
-                    formated_printout.push(format!("  [ ] {}{} | {}",
-                                                   " ".repeat(space),
-                                                   entry.id,
-                                                   task_vec.remove(0)));
+                    table.add_row(row![c->"[ ]", r->entry.id, task_vec.remove(0)]);
                 }
                 if task_vec.capacity() > 0 {
                     for part in task_vec {
-                        formated_printout.push(format!("{}| {}",
-                                                       " ".repeat(7+id_space),
-                                                       part));
+                        table.add_row(row!["", "", part]);
                     }
                 }
             }
-            formated_printout.push(String::new());
-        } else if all {
-            formated_printout.push(format!("## {}", &list.name));
-            formated_printout.push(String::new());
         }
+        table.add_row(row![""]);
     }
-    match formated_printout.len() {
-        0 => None,
-        _ => Some(formated_printout),
-    }
+    table.set_format(*format::consts::FORMAT_CLEAN);
+    table.printstd();
 }
+
 
 #[allow(unsafe_code)]
 fn get_full_name() -> Result<String, io::Error> {
@@ -150,14 +135,14 @@ fn get_full_name() -> Result<String, io::Error> {
         let uid = libc::geteuid();
         let user = ptr::read(libc::getpwuid(uid));
         let res = String::from_utf8_unchecked(slice::from_raw_parts(user.pw_gecos as *const u8,
-                                                                     libc::strlen(user.pw_gecos))
+                                                                    libc::strlen(user.pw_gecos))
             .to_vec());
         let results: Vec<&str> = res.split(",").collect();
         let name = results[0].to_string();
         if name == "" {
             Err(io::Error::last_os_error())
         } else {
-            
+
             Ok(name)
         }
     }
@@ -171,10 +156,28 @@ fn get_winsize() -> io::Result<(usize, usize)> {
         ws_xpixel: 0,
         ws_ypixel: 0,
     };
-    let r = unsafe { ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) };
+    let r = unsafe { libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, &w) };
 
     match r {
         0 => Ok((w.ws_col as usize, w.ws_row as usize)),
         _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "No valid data.")),
     }
+}
+
+fn reformat_task(task_str: &str, size: usize) -> Vec<String> {
+    let mut task_vec: Vec<String> = Vec::new();
+    let mut temp_vec: Vec<&str> = task_str.split_whitespace().collect();
+    while temp_vec.len() > 0 {
+        let mut temp_str = String::new();
+        while temp_str.len() + temp_vec[0].len() < size {
+            temp_str.push_str(temp_vec.remove(0));
+            temp_str.push_str(" ");
+            if temp_vec.len() == 0 {
+                task_vec.push(temp_str);
+                return task_vec;
+            }
+        }
+        task_vec.push(temp_str);
+    }
+    task_vec
 }
