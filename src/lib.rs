@@ -88,8 +88,14 @@ pub fn gen_tasks_md(tdo: &tdo_core::tdo::Tdo, list_done: bool) -> Option<String>
 
 /// Returns the formated output for the terminal printout.
 pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo, all: bool) {
-    let (width, _) = match get_winsize() {
-        Ok(x) => x,
+    let width = match get_winsize() {
+        Ok((x, _)) => {
+            if x <= 9 + tdo.get_highest_id().to_string().len() {
+                println!("{} Terminalsize is too small.", "error:".red().bold());
+                std::process::exit(1);
+            }
+            x
+        }
         Err(_) => {
             println!("{} Terminalsize could not be fetched.",
                      "error:".red().bold());
@@ -170,6 +176,10 @@ fn reformat_task(task_str: &str, size: usize) -> String {
                 tmp_str = entr_str.split_off(size);
                 task.push_str(format!("{}\n", entr_str).as_str());
                 entr_str = tmp_str;
+            }
+            if temp_vec.len() == 0 {
+                task.push_str(entr_str.as_str());
+                return task;
             }
             temp_str.push_str(format!("{} ", entr_str).as_str());
         }
