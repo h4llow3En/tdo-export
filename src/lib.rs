@@ -155,7 +155,8 @@ fn get_full_name() -> Result<String, io::Error> {
         if name == "" {
             Err(io::Error::last_os_error())
         } else {
-            Ok(name)
+            let results: Vec<&str> = name.split(",").collect();
+            Ok(results[0].to_string())
         }
     }
 }
