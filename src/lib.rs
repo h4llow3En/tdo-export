@@ -107,18 +107,12 @@ pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo, all: bool) {
         table.add_row(row![bc->"###", "", b->&list.name]);
         if tasks.len() > 0 {
             for entry in tasks {
-                let mut task_vec = reformat_task(&entry.name,
-                                                 width - 9 -
-                                                 tdo.get_highest_id().to_string().len());
+                let reformated = reformat_task(&entry.name,
+                                               width - 9 - tdo.get_highest_id().to_string().len());
                 if entry.done {
-                    table.add_row(row![c->"[x]", r->entry.id, task_vec.remove(0)]);
+                    table.add_row(row![c->"[x]", r->entry.id, reformated]);
                 } else {
-                    table.add_row(row![c->"[ ]", r->entry.id, task_vec.remove(0)]);
-                }
-                if task_vec.capacity() > 0 {
-                    for part in task_vec {
-                        table.add_row(row!["", "", part]);
-                    }
+                    table.add_row(row![c->"[ ]", r->entry.id, reformated]);
                 }
             }
         }
@@ -164,20 +158,30 @@ fn get_winsize() -> io::Result<(usize, usize)> {
     }
 }
 
-fn reformat_task(task_str: &str, size: usize) -> Vec<String> {
-    let mut task_vec: Vec<String> = Vec::new();
+fn reformat_task(task_str: &str, size: usize) -> String {
+    let mut task: String = String::new();
     let mut temp_vec: Vec<&str> = task_str.split_whitespace().collect();
     while temp_vec.len() > 0 {
         let mut temp_str = String::new();
+        if temp_vec[0].len() >= size {
+            let mut entr_str = temp_vec.remove(0).to_string();
+            let mut tmp_str: String;
+            while entr_str.len() >= size {
+                tmp_str = entr_str.split_off(size);
+                task.push_str(format!("{}\n", entr_str).as_str());
+                entr_str = tmp_str;
+            }
+            temp_str.push_str(format!("{} ", entr_str).as_str());
+        }
         while temp_str.len() + temp_vec[0].len() < size {
             temp_str.push_str(temp_vec.remove(0));
             temp_str.push_str(" ");
             if temp_vec.len() == 0 {
-                task_vec.push(temp_str);
-                return task_vec;
+                task.push_str(temp_str.as_str());
+                return task;
             }
         }
-        task_vec.push(temp_str);
+        task.push_str(format!("{}\n", temp_str).as_str());
     }
-    task_vec
+    task
 }
