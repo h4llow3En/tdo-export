@@ -149,14 +149,16 @@ fn get_full_name() -> Result<String, io::Error> {
     unsafe {
         let uid = libc::geteuid();
         let user = ptr::read(libc::getpwuid(uid));
-        let name = String::from_utf8_unchecked(slice::from_raw_parts(user.pw_gecos as *const u8,
+        let res = String::from_utf8_unchecked(slice::from_raw_parts(user.pw_gecos as *const u8,
                                                                      libc::strlen(user.pw_gecos))
             .to_vec());
+        let results: Vec<&str> = res.split(",").collect();
+        let name = results[0].to_string();
         if name == "" {
             Err(io::Error::last_os_error())
         } else {
-            let results: Vec<&str> = name.split(",").collect();
-            Ok(results[0].to_string())
+            
+            Ok(name)
         }
     }
 }
