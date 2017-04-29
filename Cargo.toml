@@ -15,7 +15,8 @@ readme = "README.md"
 include = [".gitignore", ".travis.yml", "Cargo.toml", "src/*.rs"]
 
 [dependencies]
-tdo-core = "0.1.1"
+tdo-core = { git = "https://github.com/tdolist/tdo-core"}
 libc = "0.2"
 colored = "1.4"
 prettytable-rs = "0.6.6"
+reqwest = "0.5.1"

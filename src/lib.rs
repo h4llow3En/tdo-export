@@ -4,19 +4,21 @@
         trivial_casts, trivial_numeric_casts,
         unused_import_braces, unused_qualifications)]
 #![warn(missing_debug_implementations)]
-extern crate tdo_core;
-extern crate libc;
-extern crate colored;
 
 #[macro_use]
 extern crate prettytable;
+
+extern crate libc;
+extern crate colored;
+extern crate reqwest;
+extern crate tdo_core;
+
+use colored::*;
+use std::io::Write;
 use prettytable::Table;
 use prettytable::format;
-// use prettytable::row::Row;
-// use prettytable::cell::Cell;
-
 use std::{slice, io, ptr};
-use colored::*;
+use std::collections::HashMap;
 
 #[repr(C)]
 struct winsize {
@@ -126,6 +128,40 @@ pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo, all: bool) {
     }
     table.set_format(*format::consts::FORMAT_CLEAN);
     table.printstd();
+}
+
+/// Creates a new issue for the given repository and returns succes or failure.
+pub fn github_issue(tdo: &tdo_core::tdo::Tdo,
+                    repo: &str,
+                    issue_text: &str,
+                    body: Option<&str>)
+                    -> bool {
+    let mut issue = HashMap::new();
+    issue.insert("title", issue_text);
+    if body.is_some() {
+        issue.insert("body", body.unwrap());
+    }
+    let api_token = match tdo.get_gh_token() {
+        Some(token) => token,
+        None => {
+            print!("{}\nPlease enter a valid accesstoken: ",
+                   "No Github accesstoken found".red());
+            io::stdout().flush().ok().expect("Could not flush stdout!");
+            let mut answer = String::new();
+            io::stdin().read_line(&mut answer).unwrap();
+            answer.trim().to_string()
+        }
+    };
+    let client = reqwest::Client::new().unwrap();
+    let _res = client.post(format!("https://api.github.com/repos/{}/issues?access_token={}",
+                      repo,
+                      api_token)
+            .as_str())
+        .json(&issue)
+        .send();
+
+    //TODO: Checking the result
+    unimplemented!();
 }
 
 
