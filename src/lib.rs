@@ -14,7 +14,6 @@ extern crate reqwest;
 extern crate tdo_core;
 
 use colored::*;
-use std::io::Write;
 use prettytable::Table;
 use prettytable::format;
 use std::{slice, io, ptr};
@@ -131,7 +130,7 @@ pub fn render_terminal_output(tdo: &tdo_core::tdo::Tdo, all: bool) {
 }
 
 /// Creates a new issue for the given repository and returns succes or failure.
-pub fn github_issue(tdo: &tdo_core::tdo::Tdo,
+pub fn github_issue(tdo: &mut tdo_core::tdo::Tdo,
                     repo: &str,
                     issue_text: &str,
                     body: Option<&str>)
@@ -141,27 +140,32 @@ pub fn github_issue(tdo: &tdo_core::tdo::Tdo,
     if body.is_some() {
         issue.insert("body", body.unwrap());
     }
-    let api_token = match tdo.get_gh_token() {
-        Some(token) => token,
-        None => {
-            print!("{}\nPlease enter a valid accesstoken: ",
-                   "No Github accesstoken found".red());
-            io::stdout().flush().ok().expect("Could not flush stdout!");
-            let mut answer = String::new();
-            io::stdin().read_line(&mut answer).unwrap();
-            answer.trim().to_string()
-        }
-    };
+    let api_token =
+        match tdo.get_gh_token() {
+            Some(token) => token,
+            None => {
+                tdo.set_gh_token(None);
+                tdo.get_gh_token().unwrap()
+            }
+        };
     let client = reqwest::Client::new().unwrap();
-    let _res = client.post(format!("https://api.github.com/repos/{}/issues?access_token={}",
+    let res = client.post(format!("https://api.github.com/repos/{}/issues?access_token={}",
                       repo,
                       api_token)
             .as_str())
         .json(&issue)
         .send();
 
-    //TODO: Checking the result
-    unimplemented!();
+    match res {
+        Ok(content) => {
+            match content.status() {
+
+                &reqwest::StatusCode::Created => true,
+                _ => false,
+            }
+        }
+        Err(_) => false,
+    }
 }
 
 
