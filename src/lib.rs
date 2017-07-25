@@ -16,6 +16,7 @@ extern crate tdo_core;
 use colored::*;
 use prettytable::Table;
 use prettytable::format;
+use tdo_core::error::*;
 use std::{slice, io, ptr};
 use std::collections::HashMap;
 
@@ -134,7 +135,7 @@ pub fn github_issue(tdo: &mut tdo_core::tdo::Tdo,
                     repo: &str,
                     issue_text: &str,
                     body: Option<&str>)
-                    -> bool {
+                    -> TdoResult<tdo_core::todo::GitHub> {
     let mut issue = HashMap::new();
     issue.insert("title", issue_text);
     if body.is_some() {
@@ -157,20 +158,24 @@ pub fn github_issue(tdo: &mut tdo_core::tdo::Tdo,
         .send();
 
     match res {
-        Ok(content) => {
+        Ok(mut content) => {
             match content.status() {
 
-                &reqwest::StatusCode::Created => true,
-                _ => false,
+                &reqwest::StatusCode::Created => {
+                        let response: tdo_core::todo::GHIssueResponse = content.json().unwrap();
+                        Ok(tdo_core::todo::GitHub::new(repo, response.number))
+                    }
+                &reqwest::StatusCode::Unauthorized => Err(ErrorKind::GithubError(github_error::ErrorKind::BadCredentials).into()),
+                _ => Err(ErrorKind::GithubError(github_error::ErrorKind::UnknownError).into()),
             }
         }
-        Err(_) => false,
+        Err(_) => Err(ErrorKind::GithubError(github_error::ErrorKind::UnknownError).into()),
     }
 }
 
 
 #[allow(unsafe_code)]
-fn get_full_name() -> Result<String, io::Error> {
+fn get_full_name() -> std::io::Result<String> {
     unsafe {
         let uid = libc::geteuid();
         let user = ptr::read(libc::getpwuid(uid));
