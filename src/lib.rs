@@ -141,14 +141,13 @@ pub fn github_issue(tdo: &mut tdo_core::tdo::Tdo,
     if body.is_some() {
         issue.insert("body", body.unwrap());
     }
-    let api_token =
-        match tdo.get_gh_token() {
-            Some(token) => token,
-            None => {
-                tdo.set_gh_token(None);
-                tdo.get_gh_token().unwrap()
-            }
-        };
+    let api_token = match tdo.get_gh_token() {
+        Some(token) => token,
+        None => {
+            tdo.set_gh_token(None);
+            tdo.get_gh_token().unwrap()
+        }
+    };
     let client = reqwest::Client::new().unwrap();
     let res = client.post(format!("https://api.github.com/repos/{}/issues?access_token={}",
                       repo,
@@ -162,15 +161,55 @@ pub fn github_issue(tdo: &mut tdo_core::tdo::Tdo,
             match content.status() {
 
                 &reqwest::StatusCode::Created => {
-                        let response: tdo_core::todo::GHIssueResponse = content.json().unwrap();
-                        Ok(tdo_core::todo::GitHub::new(repo, response.number))
-                    }
-                &reqwest::StatusCode::Unauthorized => Err(ErrorKind::GithubError(github_error::ErrorKind::BadCredentials).into()),
+                    let response: tdo_core::todo::GHIssueResponse = content.json().unwrap();
+                    Ok(tdo_core::todo::GitHub::new(repo, response.number))
+                }
+                &reqwest::StatusCode::Unauthorized => {
+                    Err(ErrorKind::GithubError(github_error::ErrorKind::BadCredentials).into())
+                }
                 _ => Err(ErrorKind::GithubError(github_error::ErrorKind::UnknownError).into()),
             }
         }
         Err(_) => Err(ErrorKind::GithubError(github_error::ErrorKind::UnknownError).into()),
     }
+}
+
+/// Updates the status of a github issue todo
+pub fn update_github_issue(old_todo: &tdo_core::todo::Todo, api_token: &str) -> TdoResult<tdo_core::todo::Todo> {
+    let github = old_todo.clone().github.unwrap();
+    let mut todo = old_todo.clone();
+    let repo = github.repo.as_str();
+    let number = github.issue_number;
+    let client = reqwest::Client::new().unwrap();
+    let res =
+        client.get(format!("https://api.github.com/repos/{}/issues/{}?access_token={}", repo, number, api_token).as_str())
+            .send();
+    match res {
+        Ok(mut content) => {
+            match content.status() {
+                &reqwest::StatusCode::Ok => {
+                    let response: tdo_core::todo::GHIssueResponse = content.json().unwrap();
+                    if todo.name != response.title {
+                        todo.edit(&response.title);
+                    }
+                    match response.state.as_str() {
+                        "closed" => todo.set_done(),
+                        "open" => todo.set_undone(),
+                        _ => return Err(ErrorKind::GithubError(github_error::ErrorKind::UnknownError).into()),
+                    }
+                }
+                &reqwest::StatusCode::NotFound => {
+                    return Err(ErrorKind::GithubError(github_error::ErrorKind::DoesNotExist).into())
+                }
+                _ => {
+                    return Err(ErrorKind::GithubError(github_error::ErrorKind::UnknownError).into())
+                }
+            }
+        }
+        Err(_) => return Err(ErrorKind::GithubError(github_error::ErrorKind::UnknownError).into()),
+    }
+
+    Ok(todo)
 }
 
 
